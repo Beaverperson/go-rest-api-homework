@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -15,19 +14,6 @@ type Task struct {
 	Description  string   `json:"description"`
 	Note         string   `json:"note"`
 	Applications []string `json:"applications"`
-}
-
-// метод структуры проверяет присутствует ли она в коллекции 'tasks'; возвращает строчку с информацией и булевое значение
-// True соответствует ситуации, когда дубликат есть
-func (task Task) checkDuplicates(tasks map[string]Task) (string, bool) {
-	for id, taskBody := range tasks {
-		if task.ID == id {
-			return fmt.Sprintf("Таск с ID=%s уже существует (%s)", id, taskBody.Note), true
-		} else if taskBody.Description == task.Description && taskBody.Note == task.Note && reflect.DeepEqual(taskBody.Applications, task.Applications) {
-			return fmt.Sprintf("Существует аналогичный таск с другим ID: %s", id), true
-		}
-	}
-	return "", false
 }
 
 var tasks = map[string]Task{
@@ -88,14 +74,15 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 
-	msg, duplicate := task.checkDuplicates(tasks)
-	if duplicate {
-		w.WriteHeader(http.StatusNotModified)
-		fmt.Printf("%s\n", msg)
-	} else {
-		tasks[task.ID] = task
-		w.WriteHeader(http.StatusCreated)
+	//проверка на дубликат
+	for id := range tasks {
+		if task.ID == id {
+			fmt.Printf("таск с ID: %s уже существует\n", id)
+			w.WriteHeader(http.StatusNotModified)
+		}
 	}
+	tasks[task.ID] = task
+	w.WriteHeader(http.StatusCreated)
 }
 
 func getOneTask(w http.ResponseWriter, r *http.Request) {
