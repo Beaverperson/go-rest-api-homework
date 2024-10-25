@@ -57,7 +57,7 @@ var tasks = map[string]Task{
 // функция выдает в консоль сообщение об ошибке, если метод w.Write не был завершен корректно
 func writeErrorLog(b int, err error) {
 	if err != nil {
-		fmt.Printf("Ошибка при обработке запроса: %v", err)
+		fmt.Printf("Ошибка при обработке запроса: %v\n", err)
 	}
 }
 
@@ -91,7 +91,7 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 	msg, duplicate := task.checkDuplicates(tasks)
 	if duplicate {
 		w.WriteHeader(http.StatusNotModified)
-		writeErrorLog(w.Write([]byte(msg)))
+		fmt.Printf("%s\n", msg)
 	} else {
 		tasks[task.ID] = task
 		w.WriteHeader(http.StatusCreated)
@@ -127,11 +127,9 @@ func deleteOneTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	delete(tasks, id)
-	//я бы отдал text/plain, но json так json
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	okReply := fmt.Sprintf("Удален таск с ID=%s (%s)", id, bufferTask.Description)
-	writeErrorLog(w.Write([]byte(okReply)))
+	fmt.Printf("Удален таск с ID=%s (%s)\n", id, bufferTask.Description)
 }
 
 func main() {
