@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -14,6 +15,19 @@ type Task struct {
 	Description  string   `json:"description"`
 	Note         string   `json:"note"`
 	Applications []string `json:"applications"`
+}
+
+// метод структуры проверяет присутствует ли она в коллекции 'tasks'; возвращает строчку с информацией и булевое значение
+// True соответствует ситуации, когда дубликат есть
+func (task Task) checkDuplicates(tasks map[string]Task) (string, bool) {
+	for id, taskBody := range tasks {
+		if task.ID == id {
+			return fmt.Sprintf("Таск с ID=%s уже существует (%s)", id, taskBody.Note), true
+		} else if taskBody.Description == task.Description && taskBody.Note == task.Note && reflect.DeepEqual(taskBody.Applications, task.Applications) {
+			return fmt.Sprintf("Существует аналогичный таск с другим ID: %s", id), true
+		}
+	}
+	return "", false
 }
 
 var tasks = map[string]Task{
@@ -40,6 +54,13 @@ var tasks = map[string]Task{
 	},
 }
 
+// функция выдает в консоль сообщение об ошибке, если метод w.Write не был завершен корректно
+func writeErrorLog(b int, err error) {
+	if err != nil {
+		fmt.Printf("Ошибка при обработке запроса: %v", err)
+	}
+}
+
 func getAllTasks(w http.ResponseWriter, r *http.Request) {
 	resp, err := json.Marshal(tasks)
 	if err != nil {
@@ -48,7 +69,7 @@ func getAllTasks(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+	writeErrorLog(w.Write(resp))
 }
 
 func postTask(w http.ResponseWriter, r *http.Request) {
@@ -65,11 +86,16 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	tasks[task.ID] = task
-
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+
+	msg, duplicate := task.checkDuplicates(tasks)
+	if duplicate {
+		w.WriteHeader(http.StatusNotModified)
+		writeErrorLog(w.Write([]byte(msg)))
+	} else {
+		tasks[task.ID] = task
+		w.WriteHeader(http.StatusCreated)
+	}
 }
 
 func getOneTask(w http.ResponseWriter, r *http.Request) {
@@ -83,13 +109,13 @@ func getOneTask(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(task)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+	writeErrorLog(w.Write(resp))
 }
 
 func deleteOneTask(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +131,7 @@ func deleteOneTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	okReply := fmt.Sprintf("Удален таск с ID=%s (%s)", id, bufferTask.Description)
-	w.Write([]byte(okReply))
+	writeErrorLog(w.Write([]byte(okReply)))
 }
 
 func main() {
