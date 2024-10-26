@@ -88,7 +88,6 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 		tasks[task.ID] = task
 		w.WriteHeader(http.StatusCreated)
 	}
-
 }
 
 func getOneTask(w http.ResponseWriter, r *http.Request) {
