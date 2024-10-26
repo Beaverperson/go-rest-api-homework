@@ -75,16 +75,11 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	//проверка на дубликат
-	isDuplicate := false
-	for id := range tasks {
-		if task.ID == id {
-			fmt.Printf("таск с ID: %s уже существует\n", id)
-			w.WriteHeader(http.StatusNotModified)
-			isDuplicate = true
-			break
-		}
-	}
-	if !isDuplicate {
+	_, idExist := tasks[task.ID]
+	if idExist {
+		fmt.Printf("таск с ID: %s уже существует\n", task.ID)
+		w.WriteHeader(http.StatusNotModified)
+	} else {
 		tasks[task.ID] = task
 		w.WriteHeader(http.StatusCreated)
 	}
